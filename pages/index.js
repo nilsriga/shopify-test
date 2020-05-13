@@ -1,77 +1,66 @@
 import React, { useCallback, useState } from "react";
 import {
-  Avatar,
-  ResourceItem,
-  ResourceList,
-  TextStyle,
-  Heading,
-  Page,
   Card,
-  ActionList,
+  Layout,
   Button,
   Modal,
   TextContainer,
+  Thumbnail,
 } from "@shopify/polaris";
 import fetch from "isomorphic-unfetch";
-import axios from "axios";
 require("es6-promise").polyfill();
 
 const domain = process.env.SHOP;
 
 const Index = (props) => {
-  const modal = () => {
-    return {};
-  };
-
   const [active, setActive] = useState(true);
 
   const handleChange = useCallback(() => setActive(!active), [active]);
 
   return (
     <div>
-      <h3>Test Product Listing / </h3>
+      <h3>App That Automatically Suggests Images For Products</h3>
 
       {props.products.map((item, index) => {
-        console.log(index);
+        // const imageUrl = await getImageUrl(item.title)
+
+        console.log(item);
+
+        // console.log("image url", await getImageUrl(item.title));
         return (
-          <Card>
-            <ActionList
-              items={[
-                { content: item.title },
-                { content: item.admin_graphql_api_id },
-              ]}
-            />
+          <Layout sectioned={true} key={1000000000 * Math.random()}>
+            <Layout.Section>
+              <Card>
+                <h4>{item.title}</h4>
+                <Thumbnail
+                  size={"medium"}
+                  source={item.suggestionImage}
+                  // source={"https://pixabay.com/get/55e0d340485aa814f1dc84609629317b173ed7ed544c704c7d2678d0944dc65c_640.jpg"}
+                  alt={item.title}
+                />
+                <h6>{item.admin_graphql_api_id}</h6>
 
-            <Button onClick={handleChange}>All Info</Button>
+                <Button onClick={handleChange}>All Info</Button>
 
-            <div style={{ height: "100%" }}>
-              <Modal
-                open={active}
-                onClose={handleChange}
-                title="Reach more shoppers with Instagram product tags"
-                primaryAction={{
-                  content: "Add Instagram",
-                  onAction: handleChange,
-                }}
-                secondaryActions={[
-                  {
-                    content: "Learn more",
-                    onAction: handleChange,
-                  },
-                ]}
-              >
-                <Modal.Section>
-                  <TextContainer>
-                    <h4>
-                      {`All the information about ${item.title} with the possibly picture id @ ${item.admin_graphql_api_id}`}
-                      :
-                    </h4>
-                    <p>{JSON.stringify(item)}</p>
-                  </TextContainer>
-                </Modal.Section>
-              </Modal>
-            </div>
-          </Card>
+                <div style={{ height: "100%" }}>
+                  <Modal
+                    open={active}
+                    onClose={handleChange}
+                    title={item.title}
+                  >
+                    <Modal.Section>
+                      <TextContainer>
+                        <h4>
+                          {`All the information about ${item.title} with the possibly picture id @ ${item.admin_graphql_api_id}`}
+                        </h4>
+                        <p>{JSON.stringify(item)}</p>
+                      </TextContainer>
+                    </Modal.Section>
+                  </Modal>
+                </div>
+              </Card>
+            </Layout.Section>
+          </Layout>
         );
       })}
     </div>
@@ -79,7 +68,7 @@ const Index = (props) => {
 };
 
 Index.getInitialProps = async () => {
-  const res = await fetch(
+  const productsRes = await fetch(
     "https://" + domain + "/admin/api/2020-04/products.json",
     {
       method: "get",
@@ -102,11 +91,33 @@ Index.getInitialProps = async () => {
     }
   );
 
-  const data = await res.json();
+  const products = await productsRes.json();
 
-  console.log(await data);
+  if (await products) {
+    products = products.products.forEach(async (product) => {
+      let terms = product.title;
 
-  return data;
+      if (/\s/.test(terms)) {
+        terms = terms.split(" ").join("+");
+      }
+
+      await fetch(
+        `https://pixabay.com/api/?key=16521987-fee00b6935bf4a553c8482529&q=${terms}&image_type=photo&pretty=true`
+      )
+        .then((response) => {
+          const imagesJson = response.json();
+
+          return imagesJson;
+        })
+        .then((json) => {
+          product.suggestionImage = json.hits[0].webformatURL;
+
+          console.log(product.suggestionImage);
+        });
+    });
+  }
+
+  return products;
 };
 
 export default Index;
