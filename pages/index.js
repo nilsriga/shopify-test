@@ -12,7 +12,7 @@ require("es6-promise").polyfill();
 
 const domain = process.env.SHOP;
 
-const Index = (props) => {
+const Index = async (props) => {
   const [active, setActive] = useState(true);
 
   const handleChange = useCallback(() => setActive(!active), [active]);
@@ -20,7 +20,7 @@ const Index = (props) => {
   return (
     <div>
       <h3>App That Automatically Suggests Images For Products</h3>
-
+      {console.log(await props)}
       {props.products.map((item, index) => {
         // const imageUrl = await getImageUrl(item.title)
 
@@ -91,10 +91,10 @@ Index.getInitialProps = async () => {
     }
   );
 
-  const products = await productsRes.json();
+  let products = await productsRes.json();
 
   if (await products) {
-    products = products.products.forEach(async (product) => {
+    const productsWIthImages = products.products.map(async (product) => {
       let terms = product.title;
 
       if (/\s/.test(terms)) {
@@ -113,11 +113,11 @@ Index.getInitialProps = async () => {
           product.suggestionImage = json.hits[0].webformatURL;
 
           console.log(product.suggestionImage);
+          return product;
         });
     });
+    return productsWIthImages;
   }
-
-  return products;
 };
 
 export default Index;
